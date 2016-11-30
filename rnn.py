@@ -35,14 +35,14 @@ def forward_propagation(x, w_xh, w_hh, w_hy):
     x_activation = x.dot(w_xh)
     prev = np.zeros(h_dim)
     for t in np.arange(T):
-    	h_activation = add_bias(prev).dot(w_hh)
-        s[t] = np.tanh(x_activation[t] + add_bias(prev).dot(w_hh))
+    	h_activation = prev.dot(w_hh)
+        s[t] = np.tanh(x_activation[t] + prev.dot(w_hh))
         # Extra Credit
         # s[t] = np.tanh(w_xh[:,x[t]] + w_hh[0].dot(s[t-1]))
         # o[t] = np.insert(s[t], 0, 1).dot(w_hy)
     # print s.shape
     # print np.insert(s, 0, 1, axis=1).shape
-    o = softmax(add_bias(s, axis=1).dot(w_hy).T).T
+    o = softmax(s.dot(w_hy).T).T
     # print o.shape
     return o, s
 
@@ -50,13 +50,18 @@ def forward_propagation(x, w_xh, w_hh, w_hy):
 # W = w_hh
 # V = w_hy
 
+def debug(shapes):
+	print
+	for i in shapes:
+		print i[0], i[1].shape
+	print
+
 # Returns gradients for input, hidden, output weights
 def bptt(seq, alpha=0.001):
     seq_len = len(seq) - 1
 
     # One hot encode
     x = to_categorical(seq[:seq_len])
-    x = add_bias(x, axis=1)
     t = to_categorical(seq[1:])
 
     # Weight initialization
@@ -67,92 +72,45 @@ def bptt(seq, alpha=0.001):
     w_hh = np.random.uniform(-w_hh_range, w_hh_range, size=(h_dim + 1, h_dim))
     w_hy = np.random.uniform(-w_hy_range, w_hy_range, size=(h_dim + 1, y_dim))
 
-    # Perform forward propagation
-    y, s = forward_propagation(x, w_xh, w_hh, w_hy)
+    w_xh = np.zeros((x_dim + 1, h_dim))
+    w_hh = np.zeros((h_dim, h_dim))
+    w_hy = np.zeros((h_dim, y_dim))
+
+    # Outputs and activations
+    y, a = forward_propagation(add_bias(x, axis=1), w_xh, w_hh, w_hy)
     # Extra credit
     # y, s = forward_propagation(x, w_xh, [w_hh], w_hy)
 
-    # print "x", x.shape
-    # print "t", t.shape
-    # print "y", y.shape
+    debug([("x", x), ("t", t), ("y", y)])
 
     # Output
-    # gradient = -alpha(target - y) * s[activations]
     delta_hy = (t - y)
-    x_hy = add_bias(s[:seq_len], axis=1).T
-    # print "activations", add_bias(s[:seq_len - 1], axis=1).shape
-    # print w_hy.shape
+    x_hy = a.T
     dE_dhy = -(x_hy.dot(delta_hy))
 
+    debug([("delta_hy", delta_hy), ("x_hy", x_hy), ("dE_dhy", dE_dhy), ("w_hy", w_hy)])
+
     # Hidden
-    # delta_ = target - y + delta from t + 1 hidden layer
-    # gradient = -alpha(delta) * s[inputs or previous hidden activations?]
+    derivatives = 1 - a ** 2
 
-    # print w_hy.shape
-
-    # delta_hh = w_hy.dot(delta_hy.T)
-    # print delta_hh.shape
-    # print s.shape
-    # delta_hh = np.zeros()
-    # print s
-    # print derivatives
-
-    # print "inputs", x_hh.shape
-    # print "w_hy", w_hy.shape
-
-    # print "delta_hy", delta_hy.shape
-    # print "sum", w_hy.dot(delta_hy.T).shape
-    # print "delta_hh", (derivatives[0].reshape(h_dim + 1, 1) * w_hy.dot(delta_hy.T)).shape
-    derivatives = add_bias((1 - s ** 2), axis=1)
-
-    # delta_hh = derivatives * w_hy . delta_hy
-    # delta_hh[t - 1] += derivatives * w_hh . delta_hh[t]
-
-    # print
     print "derivatives", derivatives.shape
     print
-    print "w_hy", w_hy.shape
-    print "delta_hy", delta_hy.shape
-    # print "input_hy", s.shape
+
     delta_hh = derivatives * delta_hy.dot(w_hy.T)
-    print "delta_hh", delta_hh.shape
-    print
-    # for t in np.arange(seq_len - 1)[::-1]:
-    # 	delta_hh[t] += derivatives delta_hh[t - 1]
-    print delta_hh[-1].shape
-    print w_hh.shape
-    print (derivatives[:,1:] * delta_hh.dot(w_hh)).shape
-    print
-    # for t in np.arange(seq_len)[::-1]:
-    # 	print "derivatives", derivatives[t].shape
-    # 	print "w_hh", w_hh.shape
-    # 	print "backprop", backprop.shape
-    # 	delta_hhh.insert(0, derivatives[t] * w_hh.dot(backprop))
-    # 	backprop = delta_hhh[0]
-    # delta_hhh = np.array(delta_hhh)
+    for t in np.arange(1, seq_len)[::-1]:
+    	delta_hh[t - 1] += derivatives[t] * delta_hh[t].dot(w_hh)
+    x_hh = np.insert(a[:seq_len - 1], 0, 0, axis=0).T
+    dE_dhh = -(x_hh.dot(delta_hh))
 
-    # print "w_hh", w_hh.shape
-    # print s[-1].shape
-    # print backprop.shape
-    # delta_hhh = derivatives[-1] * w_hh.dot(s[-1])
-    # print "delta_hhh", delta_hhh.shape
-
-    # dE_dhh = delta_hhy.dot(s)
-    # print "dE_dhh", dE_dhh.shape
-    print "w_hh", w_hh.shape
-    print
-
-    # delta_hhh = np.zeros()
-    # for t in np.arange(seq_len)[::-1]:
-    # 	delta_hhh = derivatives[t].reshape(h_dim + 1, 1) * w_hy.dot(delta_hhh)
-    # 	dE_dhh += delta_hh
-
-    x_hh = add_bias(s[:seq_len], axis=1)
-    # print "dE_dhh", delta_hh.shape
+    debug([("delta_hh", delta_hh), ("x_hh", x_hh), ("dE_dhh", dE_dhh), ("w_hh", w_hh)])
 
     # Input
     # delta = (1 - s[activations] ** 2) * sum(w_xh * delta from hidden)
     # gradient -alpha(delta) * s[inputs]
+    delta_xh = delta_hh.dot(w_xh.T)
+    x_xh = np.insert(x, 0, 1, axis=1)
+
+    debug([("delta_xh", delta_xh), ("x_xh", x_xh), ("w_hx", w_xh)])
 
     # We accumulate the gradients in these variables
     # dLdU = np.zeros(self.U.shape)
@@ -175,7 +133,7 @@ def bptt(seq, alpha=0.001):
     #         delta_t = self.W.T.dot(delta_t) * (1 - s[bptt_step-1] ** 2)
     # return [dLdU, dLdV, dLdW / T] # Average or sum?
 
-bptt("aaa")
+bptt("hello")
 
 # def train(training, test, epochs, h_dim=256, seq_len=10):
 # f.read(seq_len)
