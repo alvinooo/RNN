@@ -1,11 +1,9 @@
 import numpy as np
 
-x_dim = 256
-h_dim = 100
-y_dim = 256
+DEBUG = False
 
-def add_bias(m, axis=0):
-	return np.insert(m, 0, 1, axis=axis)
+x_dim = 256
+y_dim = 256
 
 def to_categorical(string):
 	seq = np.array([ord(char) for char in string])
@@ -22,11 +20,8 @@ def tanh(a, deriv=False):
 def softmax(a):
     return np.exp(a) / np.sum(np.exp(a), axis=0)
 
-# Stack of size input (word/sentence)
-# Store activation, input, output
-# Backprop through time
-
-def forward_propagation(x, w_xh, w_hh, w_hy):
+# Returns the output and hidden unit activations of the network
+def forward_propagation(x, h_dim, w_xh, w_hh, w_hy):
     T = len(x)
     s = np.zeros((T, h_dim))
     # s[-1] = np.zeros(h_dim)
@@ -51,39 +46,29 @@ def forward_propagation(x, w_xh, w_hh, w_hy):
 # V = w_hy
 
 def debug(shapes):
+	if not DEBUG:
+		return
 	print
 	for i in shapes:
 		print i[0], i[1].shape
 	print
 
 # Returns gradients for input, hidden, output weights
-def bptt(seq, alpha=0.001):
+def bptt(seq, h_dim, w_xh, w_hh, w_hy, alpha=0.001):
     seq_len = len(seq) - 1
 
     # One hot encode
     x = to_categorical(seq[:seq_len])
     t = to_categorical(seq[1:])
 
-    # Weight initialization
-    w_xh_range = 1.0 / np.sqrt(x_dim)
-    w_hh_range = 1.0 / np.sqrt(h_dim)
-    w_hy_range = 1.0 / np.sqrt(h_dim)
-    w_xh = np.random.uniform(-w_xh_range, w_xh_range, size=(x_dim + 1, h_dim))
-    w_hh = np.random.uniform(-w_hh_range, w_hh_range, size=(h_dim + 1, h_dim))
-    w_hy = np.random.uniform(-w_hy_range, w_hy_range, size=(h_dim + 1, y_dim))
-
-    w_xh = np.zeros((x_dim + 1, h_dim))
-    w_hh = np.zeros((h_dim, h_dim))
-    w_hy = np.zeros((h_dim, y_dim))
-
     # Outputs and activations
-    y, a = forward_propagation(add_bias(x, axis=1), w_xh, w_hh, w_hy)
+    y, a = forward_propagation(np.insert(x, 0, 1, axis=1), h_dim, w_xh, w_hh, w_hy)
     debug([("x", x), ("t", t), ("y", y)])
     # Extra credit
     # y, s = forward_propagation(x, w_xh, [w_hh], w_hy)
 
     derivatives = 1 - a ** 2
-    print "derivatives", derivatives.shape
+    # print "derivatives", derivatives.shape
 
     # Output
     delta_hy = (t - y)
@@ -107,9 +92,36 @@ def bptt(seq, alpha=0.001):
 
     return dE_dxh, dE_dhh, dE_dhy
 
-bptt("hello")
+def train(seq, epochs=10, h_dim=100):
 
-# def train(training, test, epochs, h_dim=256, seq_len=10):
+	# Weight initialization
+    w_xh_range = 1.0 / np.sqrt(x_dim)
+    w_hh_range = 1.0 / np.sqrt(h_dim)
+    w_hy_range = 1.0 / np.sqrt(h_dim)
+    w_xh = np.random.uniform(-w_xh_range, w_xh_range, size=(x_dim + 1, h_dim))
+    w_hh = np.random.uniform(-w_hh_range, w_hh_range, size=(h_dim, h_dim))
+    w_hy = np.random.uniform(-w_hy_range, w_hy_range, size=(h_dim, y_dim))
+
+    # w_xh = np.zeros((x_dim + 1, h_dim))
+    # w_hh = np.zeros((h_dim, h_dim))
+    # w_hy = np.zeros((h_dim, y_dim))
+    for i in range(epochs):
+    	dE_dxh, dE_dhh, dE_dhy = bptt(seq, h_dim, w_xh, w_hh, w_hy)
+    	w_xh -= dE_dxh
+    	w_hh -= dE_dhh
+    	w_hy -= dE_dhy
+    	# print dE_dxh
+    	# print dE_dhh
+    	# print dE_dhy
+    return w_xh, w_hh, w_hy
+
+print to_categorical("\00")
+# def generate(train, seq_len):
+# 	w_xh, w_hh, w_hy = train(train, epochs=2)
+# 	forward_propagation("")
+
+# s = "aaaaaaaaaa"
+# print generate(s, len(s))
 # f.read(seq_len)
 # with open(filename) as f:
 #   while True:
