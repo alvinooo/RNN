@@ -78,60 +78,34 @@ def bptt(seq, alpha=0.001):
 
     # Outputs and activations
     y, a = forward_propagation(add_bias(x, axis=1), w_xh, w_hh, w_hy)
+    debug([("x", x), ("t", t), ("y", y)])
     # Extra credit
     # y, s = forward_propagation(x, w_xh, [w_hh], w_hy)
 
-    debug([("x", x), ("t", t), ("y", y)])
+    derivatives = 1 - a ** 2
+    print "derivatives", derivatives.shape
 
     # Output
     delta_hy = (t - y)
     x_hy = a.T
     dE_dhy = -(x_hy.dot(delta_hy))
-
     debug([("delta_hy", delta_hy), ("x_hy", x_hy), ("dE_dhy", dE_dhy), ("w_hy", w_hy)])
 
     # Hidden
-    derivatives = 1 - a ** 2
-
-    print "derivatives", derivatives.shape
-    print
-
     delta_hh = derivatives * delta_hy.dot(w_hy.T)
     for t in np.arange(1, seq_len)[::-1]:
     	delta_hh[t - 1] += derivatives[t] * delta_hh[t].dot(w_hh)
     x_hh = np.insert(a[:seq_len - 1], 0, 0, axis=0).T
     dE_dhh = -(x_hh.dot(delta_hh))
-
     debug([("delta_hh", delta_hh), ("x_hh", x_hh), ("dE_dhh", dE_dhh), ("w_hh", w_hh)])
 
     # Input
-    # delta = (1 - s[activations] ** 2) * sum(w_xh * delta from hidden)
-    # gradient -alpha(delta) * s[inputs]
-    delta_xh = delta_hh.dot(w_xh.T)
+    delta_xh = derivatives * delta_hh.dot(w_hh.T)
     x_xh = np.insert(x, 0, 1, axis=1)
+    dE_dxh = -(x_xh.T.dot(delta_xh))
+    debug([("delta_xh", delta_xh), ("x_xh", x_xh), ("dE_dxh", dE_dxh), ("w_hx", w_xh)])
 
-    debug([("delta_xh", delta_xh), ("x_xh", x_xh), ("w_hx", w_xh)])
-
-    # We accumulate the gradients in these variables
-    # dLdU = np.zeros(self.U.shape)
-    # dLdV = np.zeros(self.V.shape)
-    # dLdW = np.zeros(self.W.shape)
-    # delta_o = o
-    # delta_o[np.arange(len(y)), y] -= 1.
-    # # For each output backwards...
-    # for t in np.arange(T)[::-1]:
-    #     dLdV += np.outer(delta_o[t], s[t].T)
-    #     # Initial delta calculation: dL/dz
-    #     delta_t = self.V.T.dot(delta_o[t]) * (1 - (s[t] ** 2))
-    #     # Backpropagation through time (for at most self.bptt_truncate steps)
-    #     for bptt_step in np.arange(max(0, t-self.bptt_truncate), t+1)[::-1]:
-    #         # print "Backpropagation step t=%d bptt step=%d " % (t, bptt_step)
-    #         # Add to gradients at each previous step
-    #         dLdW += np.outer(delta_t, s[bptt_step-1])
-    #         dLdU[:,x[bptt_step]] += delta_t
-    #         # Update delta for next step dL/dz at t-1
-    #         delta_t = self.W.T.dot(delta_t) * (1 - s[bptt_step-1] ** 2)
-    # return [dLdU, dLdV, dLdW / T] # Average or sum?
+    return dE_dxh, dE_dhh, dE_dhy
 
 bptt("hello")
 
