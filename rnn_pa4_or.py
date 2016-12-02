@@ -3,6 +3,7 @@ import numpy as np
 import math
 import sys
 import matplotlib.pyplot as plt
+import random
 
 
 class RNN:
@@ -23,7 +24,7 @@ class RNN:
 		sf.buildInputData()
 		sf.buildLabelData()
 
-		sf.numEpochs = 1
+		sf.numEpochs = 2
 		#sf.datasetLen = 1
 		sf.datasetLen = len(sf.allData) - 1 
 		sf.testDataLen = 100
@@ -168,7 +169,6 @@ class RNN:
 		sf.weightsHH = np.array(sf.weightsHH)
 
 
-
 	def setHiddenActivation(sf):    
 		sf.hiddenActivation = []
 
@@ -182,7 +182,6 @@ class RNN:
 			sf.hiddenActivation.append( list(hiddenActivationStart) )
 
 		sf.hiddenActivation = np.array(sf.hiddenActivation)
-
 
 
 	def setHiddenActivation_generate(sf):    
@@ -213,9 +212,10 @@ class RNN:
 		
 		for a in range(20):
 
-			asciiChar = str1[-1]
+			#asciiChar = str1[-1]
+			asciiChar = random.randint(0,255)
 
-			for t in range( 5 ):
+			for t in range( sf.sequenceLen ):
 
 				print "---time/sq ex: ", t, "---"
 								
@@ -274,7 +274,7 @@ class RNN:
 
 		if calc_type == 1:
 			for i in range(sf.output_dim):        
-				sf.yJK.append( float(math.exp(netJK[i])) / ( float(netSum)) * 2 )
+				sf.yJK.append( float(math.exp(netJK[i])) / ( float(netSum)) * 2 ) #adding temperature
 
 
 		sf.yJK = np.array(sf.yJK)
@@ -288,7 +288,7 @@ class RNN:
 			print "rcvd res prob: ", sf.yJK[targetIndx]
 			print "exp prob: ", sf.target[targetIndx][targetIndx]
 
-		print np.argmax(sf.yJK)
+		print "recvd char- ascii value: ", np.argmax(sf.yJK)
 		return chr( np.argmax(sf.yJK) )
 
 	def forward_back_propogation(sf):
@@ -403,7 +403,6 @@ class RNN:
 		return delta_K
 		#print "target expected", target[targetIndx]
 		#print "yJK->received", yJK
-
 
 if __name__ == '__main__':
 	
