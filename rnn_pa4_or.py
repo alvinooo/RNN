@@ -10,7 +10,7 @@ class RNN:
 	 
 	def __init__(sf):
 
-		sf.learningRate = 0.001
+		sf.learningRate = 0.01 #best learning rate
 
 		sf.input_dim = 256
 		sf.hidden_dim = 100
@@ -19,7 +19,7 @@ class RNN:
 		sf.allData = []
 		sf.label = []
 
-		sf.sequenceLen = 20
+		sf.sequenceLen = 10 #best sq len if we change the alpha and this then it starts repeating
 
 		sf.buildInputData()
 		sf.buildLabelData()
@@ -88,6 +88,22 @@ class RNN:
 
 		sf.buildTarget()
 		sf.populateWeights()
+
+	def buildInputData_sliding_window(sf):
+		f = open("trainData3.txt", 'r')
+		data = f.read()
+
+		win_len = 5
+		stride = 2
+		sf.allData = []     
+		while(stride <= len(data)-win_len):
+			chunk = f.read(sf.sequenceLen)
+			if( not chunk ):
+				break
+			sf.allData.append( chunk )
+		#print len(sf.allData)
+		
+		f.close()
 
 
 	def buildInputData(sf):
@@ -382,7 +398,7 @@ class RNN:
 					accuracyCounter += 1
 				
 			#print "hiddenActivation: ", sf.hiddenActivation
-			sf.weight_update()
+			sf.adagrad_weight_update()
 			
 			print "*** end data ex: ", i, "***"
 
@@ -436,6 +452,30 @@ class RNN:
 		return delta_K
 		#print "target expected", target[targetIndx]
 		#print "yJK->received", yJK
+
+
+	def adagrad_weight_update(sf):
+
+		grad_prod = np.dot(sf.gradDescHidden, sf.gradDescHidden.T)
+		diag = grad_prod.diagonal()
+		adagrad = 1/np.sqrt(diag)
+		for col in range(sf.gradDescHidden.shape[1]):
+		    sf.gradDescHidden[:,col] = sf.gradDescHidden[:,col] * adagrad
+		sf.weightsIJ += np.dot(sf.learningRate, sf.gradDescHidden)
+
+		grad_prod = np.dot(sf.gradDescOutput, sf.gradDescOutput.T)
+		diag = grad_prod.diagonal()
+		adagrad = 1/np.sqrt(diag)
+		for col in range(sf.gradDescOutput.shape[1]):
+		    sf.gradDescOutput[:,col] = sf.gradDescOutput[:,col] * adagrad
+		sf.weightsJK += np.dot( sf.learningRate, sf.gradDescOutput )
+
+		grad_prod = np.dot(sf.gradDescHH, sf.gradDescHH.T)
+		diag = grad_prod.diagonal()
+		adagrad = 1/np.sqrt(diag)
+		for col in range(sf.gradDescHH.shape[1]):
+		    sf.gradDescHH[:,col] = sf.gradDescHH[:,col] * adagrad
+		sf.weightsHH += np.dot( sf.learningRate, sf.gradDescHH )
 
 
 	def loss(sf):
