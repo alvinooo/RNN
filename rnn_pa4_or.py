@@ -10,10 +10,10 @@ class RNN:
 	 
 	def __init__(sf):
 
-		sf.learningRate = 0.01 #best learning rate
+		sf.learningRate = 0.0100 #best learning rate
 
 		sf.input_dim = 256
-		sf.hidden_dim = 100
+		sf.hidden_dim = 115
 		sf.output_dim = 256
 
 		sf.allData = []
@@ -94,15 +94,34 @@ class RNN:
 		data = f.read()
 
 		win_len = 5
-		stride = 2
-		sf.allData = []     
-		while(stride <= len(data)-win_len):
-			chunk = f.read(sf.sequenceLen)
-			if( not chunk ):
-				break
-			sf.allData.append( chunk )
+		stride = 5
+		sf.allData = []   
+		start = 0  
+		while( stride <= ( (100) - sf.sequenceLen) ):
+			
+			sf.allData.append( data[start:start+sf.sequenceLen] )
+			print data[start:start+sf.sequenceLen]
+			start += stride
+		
 		#print len(sf.allData)
 		
+		f.close()
+
+	def buildLabelData_sliding_window(sf, ):
+		f = open("trainData3_test.txt", 'r')
+		data = f.read()
+
+		win_len = 5
+		stride = 5
+		sf.allData = []   
+		start = 0  
+		while( stride <= ( len(data) - sf.sequenceLen) ):
+			
+			sf.allData.append( data[start:start+sf.sequenceLen] )
+			print data[start:start+sf.sequenceLen]
+			start += stride
+		
+		#print len(sf.allData)
 		f.close()
 
 
@@ -224,10 +243,8 @@ class RNN:
 		sf.hiddenActivation = hiddenActivation_temp
 
 		#print sf.hiddenActivation
-
 		#print x[1]
 		#print x[0]
-
 		#print x[3]
 		#print x[4]
 		   
@@ -238,16 +255,16 @@ class RNN:
 		calc_type = 1
 		#expected output: "abcde"
 		print "*** testing ***"
-		asciiChar = 's'
+		asciiChar = chr(random.randint(0,255))
 		str1 = ""
 		str1 += asciiChar
 		
-		for a in range(50):
+		for a in range(30):
 
 			#asciiChar = str1[-1]
 			asciiChar = chr(random.randint(0,255))
 			sf.setHiddenActivation_generate()
-			#sf.setHiddenActivation()
+			
 			for t in range( sf.sequenceLen ):
 
 				#print "---time/sq ex: ", t, "---"
@@ -304,7 +321,8 @@ class RNN:
 				netSum += math.exp(netJK[i])
 			except OverflowError:
 				netSum = float('inf')
-			
+		
+		#fix softmax
 		if calc_type == 0:
 			for i in range(sf.output_dim):        
 				sf.yJK.append( float(math.exp(netJK[i])) / ( float(netSum)) )
@@ -398,7 +416,7 @@ class RNN:
 					accuracyCounter += 1
 				
 			#print "hiddenActivation: ", sf.hiddenActivation
-			sf.adagrad_weight_update()
+			sf.weight_update()
 			
 			print "*** end data ex: ", i, "***"
 
