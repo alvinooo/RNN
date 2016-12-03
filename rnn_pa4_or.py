@@ -7,10 +7,10 @@ import random
 
 
 class RNN:
-     
+	 
 	def __init__(sf):
 
-		sf.learningRate = 0.1
+		sf.learningRate = 0.001
 
 		sf.input_dim = 256
 		sf.hidden_dim = 100
@@ -19,14 +19,14 @@ class RNN:
 		sf.allData = []
 		sf.label = []
 
-		sf.sequenceLen = 10
+		sf.sequenceLen = 20
 
 		sf.buildInputData()
 		sf.buildLabelData()
 
-		sf.numEpochs = 2
+		sf.numEpochs = 1
 		#sf.datasetLen = 1
-		sf.datasetLen = len(sf.allData) - 1 
+		sf.datasetLen = len(sf.allData) - 1
 		sf.testDataLen = 100
 
 		#make sure these are always reset#
@@ -48,12 +48,14 @@ class RNN:
 		asciiLen = 256
 		
 		for i in range(asciiLen):
-		    sf.charset.append(0)
+			sf.charset.append(0)
 
 		sf.charset = np.array(sf.charset)
 
 
-		
+		#sliding window
+		#memory of past -> hidden activation
+
 		#later ones are all messed up in the data set -> earlier ones learn great!
 		#but the earlier ones learn well!
 		#training for more epochs does not do that better
@@ -89,46 +91,48 @@ class RNN:
 
 
 	def buildInputData(sf):
-		f = open("traindata.txt", 'r')
+		f = open("trainData3.txt", 'r')
 
-		sf.allData = []		
+		sf.allData = []     
 		#print "*********************************************************"
 		while(True):
 			chunk = f.read(sf.sequenceLen)
 			if( not chunk ):
-			    break
+				break
 			sf.allData.append( chunk )
-		#print sf.allData
+		#print len(sf.allData)
 		#print "*********************************************************"
+		
 		f.close()
 
 	def buildLabelData(sf):
-		f = open("traindata.txt", 'r')
+		f = open("trainData3_test.txt", 'r')
+		
+		#f.read(1)
 
 		sf.label = []
 		#print "*********************************************************"
 		while(True):
 			chunk = f.read(sf.sequenceLen)
 			if( not chunk ):
-			    break
+				break
 			sf.label.append( chunk )
-		#print sf.label
+		#print len(sf.label)
 		#print "*********************************************************"
 		f.close()
 
 	def buildTarget(sf):
 		target_one_hot = []
 		for i in range(sf.output_dim):
-		    target_one_hot.append(0)
+			target_one_hot.append(0)
 
 		for i in range(sf.output_dim):
-		    sf.target.append(list(target_one_hot))
+			sf.target.append(list(target_one_hot))
 
 		for i in range(sf.output_dim):
-		    sf.target[i][i] = 1
+			sf.target[i][i] = 1
 
 		sf.target = np.array(sf.target)
-
 
 	def populateWeights(sf):
 
@@ -136,9 +140,9 @@ class RNN:
 		weightsPerClassIJ = []
 
 		for i in range(sf.hidden_dim):
-		    mu, sigma = 0, 1.0/(256.0) #mean and standard deviation
-		    weightsPerClassIJ = np.random.normal(mu, sigma, sf.input_dim)
-		    sf.weightsIJ.append(list(weightsPerClassIJ))
+			mu, sigma = 0, 1.0/math.sqrt(256.0) #mean and standard deviation
+			weightsPerClassIJ = np.random.normal(mu, sigma, sf.input_dim)
+			sf.weightsIJ.append(list(weightsPerClassIJ))
 
 		#converting into numpy array for multiplication
 		sf.weightsIJ = np.array(sf.weightsIJ)
@@ -149,9 +153,9 @@ class RNN:
 		weightsPerClassJK = []
 		#append weights 10 times -> for each input -> y_j -> output of the hidden layer  
 		for i in range(sf.output_dim):
-		    mu, sigma = 0, 1.0/(100.0) # mean and standard deviation
-		    weightsPerClassJK = np.random.normal(mu, sigma, sf.hidden_dim)
-		    sf.weightsJK.append(list(weightsPerClassJK))
+			mu, sigma = 0, 1.0/math.sqrt(100.0) # mean and standard deviation
+			weightsPerClassJK = np.random.normal(mu, sigma, sf.hidden_dim)
+			sf.weightsJK.append(list(weightsPerClassJK))
 		#converting into numpy array for multiplication
 		sf.weightsJK = np.array(sf.weightsJK)
 
@@ -162,9 +166,9 @@ class RNN:
 		weightsPerClassHH = []
 		#append weights 10 times -> for each input -> y_j -> output of the hidden layer  
 		for i in range(sf.hidden_dim):
-		    mu, sigma = 0, 1.0/(100.0) # mean and standard deviation
-		    weightsPerClassHH = np.random.normal(mu, sigma, sf.hidden_dim)
-		    sf.weightsHH.append(list(weightsPerClassHH))
+			mu, sigma = 0, 1.0/math.sqrt(100.0) # mean and standard deviation
+			weightsPerClassHH = np.random.normal(mu, sigma, sf.hidden_dim)
+			sf.weightsHH.append(list(weightsPerClassHH))
 		#converting into numpy array for multiplication
 		sf.weightsHH = np.array(sf.weightsHH)
 
@@ -185,77 +189,94 @@ class RNN:
 
 
 	def setHiddenActivation_generate(sf):    
-		hiddenActivation_generate = []
-		hiddenActivation_generate.append(sf.hiddenActivation[sf.sequenceLen])
+		hiddenActivation_temp = []
+		x = sf.hiddenActivation[sf.sequenceLen-1]
+
 		for ha in range(sf.sequenceLen):
 
-			hiddenActivation_generate_start = []
+			hiddenActivation_layer_temp = []
 
 			for h in range(sf.hidden_dim):
-				hiddenActivation_generate_start.append(0.0)
+				hiddenActivation_layer_temp.append(0.0)
 
-			hiddenActivation_generate.append( list( hiddenActivation_generate_start) )
+			hiddenActivation_temp.append( list( hiddenActivation_layer_temp) )
 
-		hiddenActivation_generate = np.array( hiddenActivation_generate)
-		sf.hiddenActivation = hiddenActivation_generate
-	       
+		hiddenActivation_temp.append(list(x))
+		#print hiddenActivation_generate
+
+		hiddenActivation_temp = np.array( hiddenActivation_temp)
+		sf.hiddenActivation = hiddenActivation_temp
+
+		#print sf.hiddenActivation
+
+		#print x[1]
+		#print x[0]
+
+		#print x[3]
+		#print x[4]
+		   
 	def generate(sf):
 
+		#print "sf.weightsHH[0]", sf.weightsHH[0][2]
+		
 		calc_type = 1
 		#expected output: "abcde"
 		print "*** testing ***"
-		asciiChar = 'A'
+		asciiChar = 's'
 		str1 = ""
 		str1 += asciiChar
 		
-		sf.setHiddenActivation_generate()
-		
-		for a in range(20):
+		for a in range(50):
 
 			#asciiChar = str1[-1]
-			asciiChar = random.randint(0,255)
-
+			asciiChar = chr(random.randint(0,255))
+			sf.setHiddenActivation_generate()
+			#sf.setHiddenActivation()
 			for t in range( sf.sequenceLen ):
 
-				print "---time/sq ex: ", t, "---"
+				#print "---time/sq ex: ", t, "---"
 								
 				sf.calc_y_hidden_layer(asciiChar, t, calc_type)
 				
 				asciiChar = sf.calc_y_softmax_output_layer(0, t, calc_type)
-
+				#print ord(asciiChar)
 				str1 += asciiChar
 
-			print str1
+		print str1
 
-		print "*** testing ***"
-
+		print "*** testing ***"		
 
 	def calc_y_hidden_layer(sf, currData, timestep, calc_type):
 	
 		if calc_type == 0:
 			asciiChar = ord(sf.allData[currData][timestep])
 			sf.charset[asciiChar] = 1
-		if calc_type == 1:			
+		if calc_type == 1:          
 			asciiChar = ord(currData)
 			sf.charset[asciiChar] = 1
 
 		#print "charset: ", sf.charset
 		sf.yIJ = []    
-		sf.yIJ = np.tanh( np.dot( sf.weightsHH, sf.hiddenActivation[timestep - 1] ) + np.dot( sf.weightsIJ, sf.charset) )	
+
+		sf.yIJ = np.tanh( np.dot( sf.weightsHH, sf.hiddenActivation[timestep - 1] ) + np.dot( sf.weightsIJ, sf.charset) )   
+		
+		#if timestep - 1 == -1:
+		#print "calc_y_hidden_layer: ", sf.hiddenActivation[timestep-1][1]
+
 		sf.hiddenActivation[timestep] = sf.yIJ
 		#print "hiddenActivation[timestep]: ", sf.hiddenActivation[timestep]
 		sf.charset[asciiChar] = 0
 
-	    #print sf.yIJ
-	    #print "calc_y_hidden_layer: ", currData
-	    #print "yIJ", sf.yIJ.shape
-	    #print "calc_y_hidden_layer: yIJ", yIJ
-	    #reset net_IJ for input to hidden layer	 
-	    
-	    #print "exiting from calc_y_hidden_layer"
+		#print sf.yIJ
+		#print "calc_y_hidden_layer: ", currData
+		#print "yIJ", sf.yIJ.shape
+		#print "calc_y_hidden_layer: yIJ", yIJ
+		#reset net_IJ for input to hidden layer  
+		
+		#print "exiting from calc_y_hidden_layer"
 
 	def calc_y_softmax_output_layer(sf, targetIndx, timestep, calc_type):
-	    
+		
 		sf.yJK = []
 		netJK = []
 
@@ -263,10 +284,10 @@ class RNN:
 		netJK = np.dot(sf.weightsJK, sf.hiddenActivation[timestep])
 		netSum = 0.0  
 		for i in range(sf.output_dim):
-		    try:
-		        netSum += math.exp(netJK[i])
-		    except OverflowError:
-		        netSum = float('inf')
+			try:
+				netSum += math.exp(netJK[i])
+			except OverflowError:
+				netSum = float('inf')
 			
 		if calc_type == 0:
 			for i in range(sf.output_dim):        
@@ -274,27 +295,28 @@ class RNN:
 
 		if calc_type == 1:
 			for i in range(sf.output_dim):        
-				sf.yJK.append( float(math.exp(netJK[i])) / ( float(netSum)) * 2 ) #adding temperature
+				sf.yJK.append( float(math.exp(netJK[i])) /( float(netSum)) ) #adding temperature
 
 
 		sf.yJK = np.array(sf.yJK)
 
-
 		#print sf.yJK
 		#print "calc_y_softmax_output_layer: yJK", yJK
 		#print len(yJK)
+
 		if calc_type == 0:
-			print "rcvd res: ", chr(targetIndx)
-			print "rcvd res prob: ", sf.yJK[targetIndx]
-			print "exp prob: ", sf.target[targetIndx][targetIndx]
+			print "expctd res: ", targetIndx
+			print "res prob-softmax: ", sf.yJK[targetIndx]
 
 		print "recvd char- ascii value: ", np.argmax(sf.yJK)
+		print "chr: ",chr(np.argmax(sf.yJK))
+		print "recvd prob: ", np.max(sf.yJK)
 		return chr( np.argmax(sf.yJK) )
 
 	def forward_back_propogation(sf):
 
-	    training_acc_epochs = []
-	    for j in range(sf.numEpochs):
+		training_acc_epochs = []
+		for j in range(sf.numEpochs):
 			#reset for every training epoch
 			print "------------------- start of epoch: ", j, "-------------------"
 
@@ -321,21 +343,21 @@ class RNN:
 		sf.calc_y_softmax_output_layer(targetIndx, j, calc_type)
 	
 	def backward_prop(sf, currData, timestep, targetIndx):
-	    delta_K = sf.calc_deltaK_gradient_descent_output_layer(targetIndx, timestep)
-	    sf.bptt(delta_K, timestep, currData)	 
+		delta_K = sf.calc_deltaK_gradient_descent_output_layer(targetIndx, timestep)
+		sf.bptt(delta_K, timestep, currData)     
 	
 	def weight_update(sf):
 		sf.weightsIJ += np.dot( sf.learningRate, sf.gradDescHidden )
 		sf.weightsJK += np.dot( sf.learningRate, sf.gradDescOutput )
 		sf.weightsHH += np.dot( sf.learningRate, sf.gradDescHH )
 
-	def forward_back_prop_single_epoch(sf):	
+	def forward_back_prop_single_epoch(sf): 
 		training_acc = []
 		calc_type = 0
-		errorCounter = 0
+		accuracyCounter = 0
 
-	    #over all training examples
-		for i in range(sf.datasetLen):	        
+		#over all training examples
+		for i in range(sf.datasetLen):          
 			print "*** begin data ex: ", i, "***"
 
 			sf.resetParameters(i) #resets gradient matrixes
@@ -343,32 +365,43 @@ class RNN:
 			for t in range( sf.sequenceLen ):
 
 				print "---time/sq ex: ", t, "---"
-								
-				targetIndx = ord( sf.label[i][t] )	
+				print "input & expected char", sf.allData[i][t], sf.label[i][t]		
+				targetIndx = ord( sf.label[i][t] )  
+				#print "expected char",sf.label[i][t]
 
 				sf.forward_prop(i, t, calc_type, targetIndx)
 				
 				sf.backward_prop(i, t, targetIndx)
 
+				'''
 				if np.argmax(sf.yJK) != np.argmax(sf.target[targetIndx]):
 					errorCounter += 1
+				'''
 
+				if np.argmax(sf.yJK) == np.argmax(sf.target[targetIndx]):
+					accuracyCounter += 1
+				
 			#print "hiddenActivation: ", sf.hiddenActivation
 			sf.weight_update()
 			
 			print "*** end data ex: ", i, "***"
 
-		acc = 1 - (float(errorCounter)/float(sf.datasetLen))
+		acc = (float(accuracyCounter)/float(sf.datasetLen*sf.sequenceLen))
 
 		print "Training Accuracy for ", sf.datasetLen, "data examples in", sf.numEpochs + 1, "th Epoch: ", acc
+		
+		#print "sf.weightsHH[0]", sf.weightsHH[0][2]
+
+		#print "loss: ", sf.loss()
+
 		return acc*100
 
 
 	def bptt(sf, delta_K, timestep, currData):
 
 		delta_t = np.dot( sf.weightsJK.T, delta_K )* ( 1 - ( sf.hiddenActivation[timestep] ** 2) ) #at the 0th timestep, hiddenA=0
-		for t in range(timestep+1)[::-1]:			
-			print "Backprop: timestep=%d & step t=%d " % (timestep, t)
+		for t in range(timestep+1)[::-1]:           
+			#print "Backprop: timestep=%d & step t=%d " % (timestep, t)
 
 			asciiChar = ord( sf.allData[currData][t] )
 			#print "bptt: asciiChar", asciiChar
@@ -404,6 +437,27 @@ class RNN:
 		#print "target expected", target[targetIndx]
 		#print "yJK->received", yJK
 
+
+	def loss(sf):
+		L = 0
+		# For each example
+		for i in np.arange(len(sf.label)):
+			# For each timestep
+			output = np.zeros([len(sf.label[i]),256])
+			target = np.zeros(len(sf.label[i]))
+			for t in range(len(sf.label[i])):
+				asciiChar_input = ord(sf.allData[i][t])
+				sf.calc_y_hidden_layer(i, t, calc_type=0)
+				asciiChar_predict = ord(sf.calc_y_softmax_output_layer(0, t, calc_type=0))
+				asciiChar_target = ord(sf.label[i][t])
+				target[t] = asciiChar_target
+				output[t,asciiChar_predict] = 1
+
+			correct_word_predictions = output[:, target.astype(int)]
+			
+			L += -1 * np.sum(np.log(correct_word_predictions))
+		return L
+
 if __name__ == '__main__':
 	
 	RNN = RNN()
@@ -411,4 +465,4 @@ if __name__ == '__main__':
 	RNN.generate()
 
 
-						    
+							
